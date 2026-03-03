@@ -1,166 +1,130 @@
 # wrap_text_inverse
 
-Cylindrical Label Projection with Inverse Mapping (Orthographic +
-Perspective)
+透過PNG（文字/ロゴ）を「円筒に巻き付けた見え方」に変換するスクリプトです。  
+**トリム前提**（非透明領域の bbox で切り出してから変形）で、**inverse mapping** なので穴あきしません。  
+正射影（orthographic）と透視投影（perspective）に対応します。
 
-------------------------------------------------------------------------
+---
 
-# 日本語版
+## 日本語
 
-## 概要
+### 何をするか
 
-`wrap_text_inverse.py` は、透過PNG画像（文字やロゴなど）を
-**円筒に巻き付けた見え方に変換するPythonスクリプト**です。
+- 入力：透明背景付きPNG（RGBA）
+- 処理：
+  1. `alpha > threshold` の画素から bbox を求める
+  2. bbox で画像を **切り出す（trim）**
+  3. 切り出した画像を円筒投影で横方向のみワープ（縦方向は不変）
+- 出力：ワープ後のPNG（サイズはトリム後サイズ）
 
--   縦方向のピクセルは変更しません
--   横方向のみ数学的に変換します
--   逆写像（inverse mapping）を使用するため穴あきが発生しません
--   正射影（orthographic）と透視投影（perspective）の両方に対応
+### bbox-center の定義
 
-------------------------------------------------------------------------
+トリム後の画像（幅 `W`）において、
 
-## 数学モデル
+- `x_min = 0`
+- `x_max_exclusive = W`
 
-### 1. 基本パラメータ
+なので、bbox-center は
 
--   円筒直径: `D_px`
--   半径: `R = D_px / 2`
--   ラベル弧長: `L_px`
--   入力画像幅: `W`
--   カメラ距離（透視時）: `d`
+`x_center = (x_min + (x_max_exclusive - 1)) / 2 = (W - 1) / 2`
 
-------------------------------------------------------------------------
+円筒の正面（θ=0）に来るアンカーは
 
-## 正射影（Orthographic Projection）
+`x_anchor = x_center + dx`
 
-円筒角度:
+です。
 
-θ = (L_px / R) \* (x - x_c) / (W - 1)
+### インストール
 
-投影:
-
-x_proj = R \* sin(θ)
-
-------------------------------------------------------------------------
-
-## 透視投影（Perspective Projection）
-
-3D円筒座標:
-
-X(θ) = R sinθ\
-Z(θ) = R (1 - cosθ)
-
-透視投影式:
-
-x_img(θ) = d R sinθ / ( d + R (1 - cosθ) )
-
-本プログラムでは解析的逆解（t = tan(θ/2)）を用いて θ を求めています。
-
-------------------------------------------------------------------------
-
-## 必要環境
-
--   Python 3.9+
--   Pillow
--   NumPy
-
-インストール:
-
+```bash
 pip install pillow numpy
+```
 
-------------------------------------------------------------------------
+### 使い方
 
-## 使用方法
+#### 正射影（デフォルト）
 
-### 正射影
-
+```bash
 python wrap_text_inverse.py input.png -o output.png --D 800
+```
 
-### 透視投影
+#### 透視投影
 
+```bash
 python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000
+```
 
-------------------------------------------------------------------------
+#### アンカーを右へ 25px ずらす（dx）
 
-## オプション
+```bash
+python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000 --dx 25
+```
 
---D : 円筒直径（px）【必須】\
---L : ラベル弧長（px）※省略時は画像幅\
---cam : カメラ距離（px）※指定時は透視投影\
---margin : 自動トリミング余白（既定40px）\
---alpha_threshold : 透過判定しきい値
+### オプション
 
-------------------------------------------------------------------------
+- `--D` : 円筒直径（px）【必須】
+- `--L` : ラベル弧長（px）※省略時はトリム後幅
+- `--cam` : カメラ距離（px）※指定すると透視投影
+- `--dx` : bbox-center からのアンカーずらし（px、右が正）
+- `--alpha-threshold` : bbox を取る alpha しきい値（0..255）
 
-## パラメータ調整の目安
+### パラメータ調整の目安
 
--   強く巻き付けたい → D を小さく
--   緩やかにしたい → D を大きく
--   透視効果を強く → cam を小さく
--   正射影に近づける → cam を大きく
+- 巻き付き強め：`D` を小さく
+- 巻き付き弱め：`D` を大きく
+- 透視強め：`cam` を小さく
+- 正射影に近づく：`cam` を大きく（`cam` 未指定が完全な正射影）
 
-推奨初期値: cam ≈ 3R 〜 10R
+---
 
-------------------------------------------------------------------------
+## English
 
-# English Version
+### What it does
 
-## Overview
+- Input: RGBA PNG with transparency
+- Steps:
+  1. Compute bbox from pixels where `alpha > threshold`
+  2. **Trim** to the bbox
+  3. Warp horizontally using a cylindrical projection (vertical pixels unchanged)
+- Output: warped PNG (size equals trimmed size)
 
-`wrap_text_inverse.py` converts a transparent PNG into a **cylindrical
-wrapped projection**.
+### bbox-center definition
 
-Features:
+After trimming, bbox spans `[0, W)` in x, so:
 
--   Vertical pixels remain unchanged
--   Horizontal axis warped mathematically
--   Inverse mapping (no pixel holes)
--   Supports orthographic and perspective projection
+`x_center = (W - 1) / 2`
 
-------------------------------------------------------------------------
+Anchor (θ=0):
 
-## Orthographic Projection
+`x_anchor = x_center + dx`
 
-θ = (L_px / R) \* (x - x_c) / (W - 1)
+### Install
 
-x_proj = R \* sin(θ)
-
-------------------------------------------------------------------------
-
-## Perspective Projection
-
-X(θ) = R sinθ\
-Z(θ) = R (1 - cosθ)
-
-x_img(θ) = d R sinθ / ( d + R (1 - cosθ) )
-
-θ is solved analytically using the half-angle substitution.
-
-------------------------------------------------------------------------
-
-## Requirements
-
--   Python 3.9+
--   Pillow
--   NumPy
-
-Install:
-
+```bash
 pip install pillow numpy
+```
 
-------------------------------------------------------------------------
-
-## Usage
+### Usage
 
 Orthographic:
 
+```bash
 python wrap_text_inverse.py input.png -o output.png --D 800
+```
 
 Perspective:
 
+```bash
 python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000
+```
 
-------------------------------------------------------------------------
+Shift anchor:
+
+```bash
+python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000 --dx 25
+```
+
+---
 
 ## License
 
@@ -168,15 +132,14 @@ MIT License
 
 Copyright (c) 2026
 
-Permission is hereby granted, free of charge, to any person obtaining a
-copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included
-in all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
