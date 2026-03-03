@@ -1,41 +1,60 @@
 # wrap_text_inverse
 
-## 日本語説明
-
-### 概要
-
-`wrap_text_inverse.py`
-は、透過PNG画像（文字やロゴなど）を**円筒に巻き付けた見え方に変換するPythonスクリプト**です。
-
-縦方向のピクセル位置は変更せず、横方向のみを数学的に円筒投影（逆写像 /
-inverse mapping）で変換します。
-
-物理モデルに基づいた変換を行うため、
-
--   円筒の直径（ピクセル単位）
--   巻き付けるラベルの弧長（ピクセル単位）
-
-を入力パラメータとして指定できます。
+Cylindrical Label Projection with Inverse Mapping (Orthographic +
+Perspective)
 
 ------------------------------------------------------------------------
 
-## 数学的モデル
+# 日本語版
+
+## 概要
+
+`wrap_text_inverse.py` は、透過PNG画像（文字やロゴなど）を
+**円筒に巻き付けた見え方に変換するPythonスクリプト**です。
+
+-   縦方向のピクセルは変更しません
+-   横方向のみ数学的に変換します
+-   逆写像（inverse mapping）を使用するため穴あきが発生しません
+-   正射影（orthographic）と透視投影（perspective）の両方に対応
+
+------------------------------------------------------------------------
+
+## 数学モデル
+
+### 1. 基本パラメータ
 
 -   円筒直径: `D_px`
 -   半径: `R = D_px / 2`
 -   ラベル弧長: `L_px`
 -   入力画像幅: `W`
+-   カメラ距離（透視時）: `d`
 
-入力座標 x を円筒上の角度 θ に変換:
+------------------------------------------------------------------------
+
+## 正射影（Orthographic Projection）
+
+円筒角度:
 
 θ = (L_px / R) \* (x - x_c) / (W - 1)
 
-正面投影では:
+投影:
 
 x_proj = R \* sin(θ)
 
-本プログラムでは穴あきを防ぐために**inverse
-mapping（逆写像）**を採用しています。
+------------------------------------------------------------------------
+
+## 透視投影（Perspective Projection）
+
+3D円筒座標:
+
+X(θ) = R sinθ\
+Z(θ) = R (1 - cosθ)
+
+透視投影式:
+
+x_img(θ) = d R sinθ / ( d + R (1 - cosθ) )
+
+本プログラムでは解析的逆解（t = tan(θ/2)）を用いて θ を求めています。
 
 ------------------------------------------------------------------------
 
@@ -53,63 +72,69 @@ pip install pillow numpy
 
 ## 使用方法
 
+### 正射影
+
 python wrap_text_inverse.py input.png -o output.png --D 800
 
-### オプション
+### 透視投影
 
---D : 円筒直径（px）※必須\
+python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000
+
+------------------------------------------------------------------------
+
+## オプション
+
+--D : 円筒直径（px）【必須】\
 --L : ラベル弧長（px）※省略時は画像幅\
+--cam : カメラ距離（px）※指定時は透視投影\
 --margin : 自動トリミング余白（既定40px）\
 --alpha_threshold : 透過判定しきい値
 
-例:
+------------------------------------------------------------------------
 
-python wrap_text_inverse.py text.png -o wrapped.png --D 600 --L 500
+## パラメータ調整の目安
+
+-   強く巻き付けたい → D を小さく
+-   緩やかにしたい → D を大きく
+-   透視効果を強く → cam を小さく
+-   正射影に近づける → cam を大きく
+
+推奨初期値: cam ≈ 3R 〜 10R
 
 ------------------------------------------------------------------------
 
-## パラメータ調整のヒント
-
--   より強く巻き付けたい → D を小さくする\
--   緩やかにしたい → D を大きくする\
--   L を小さくすると、より中央寄りに圧縮される
-
-------------------------------------------------------------------------
-
-# English Description
+# English Version
 
 ## Overview
 
-`wrap_text_inverse.py` transforms a transparent PNG (text or logo) into
-a **cylindrical wrapped projection**.
+`wrap_text_inverse.py` converts a transparent PNG into a **cylindrical
+wrapped projection**.
 
-The vertical pixel positions remain unchanged.\
-Only the horizontal axis is transformed using a mathematically correct
-cylindrical projection model with inverse mapping.
+Features:
 
-You can control:
-
--   Cylinder diameter (in pixels)
--   Label arc length (in pixels)
+-   Vertical pixels remain unchanged
+-   Horizontal axis warped mathematically
+-   Inverse mapping (no pixel holes)
+-   Supports orthographic and perspective projection
 
 ------------------------------------------------------------------------
 
-## Mathematical Model
-
--   Cylinder diameter: `D_px`
--   Radius: `R = D_px / 2`
--   Label arc length: `L_px`
--   Input width: `W`
-
-Mapping input x to cylinder angle θ:
+## Orthographic Projection
 
 θ = (L_px / R) \* (x - x_c) / (W - 1)
 
-Front projection:
-
 x_proj = R \* sin(θ)
 
-The implementation uses inverse mapping to avoid pixel holes.
+------------------------------------------------------------------------
+
+## Perspective Projection
+
+X(θ) = R sinθ\
+Z(θ) = R (1 - cosθ)
+
+x_img(θ) = d R sinθ / ( d + R (1 - cosθ) )
+
+θ is solved analytically using the half-angle substitution.
 
 ------------------------------------------------------------------------
 
@@ -127,11 +152,13 @@ pip install pillow numpy
 
 ## Usage
 
+Orthographic:
+
 python wrap_text_inverse.py input.png -o output.png --D 800
 
-Example:
+Perspective:
 
-python wrap_text_inverse.py text.png -o wrapped.png --D 600 --L 500
+python wrap_text_inverse.py input.png -o output.png --D 800 --cam 2000
 
 ------------------------------------------------------------------------
 
@@ -152,10 +179,4 @@ the following conditions:
 The above copyright notice and this permission notice shall be included
 in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
